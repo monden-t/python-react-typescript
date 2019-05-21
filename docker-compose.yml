@@ -1,0 +1,71 @@
+version: '3'
+services:
+  nginx:
+    image: prt-nginx
+    build: ./docker/nginx
+    working_dir: /usr/share/nginx/html
+    volumes:
+      - ./prtapp/build/static:/usr/share/nginx/html/build/static
+      - ./prtapp/batch/maintenance:/usr/share/nginx/html/batch/maintenance
+    ports:
+      - "80:80"
+    networks:
+      - prt_common
+    depends_on:
+      - app
+    environment:
+      TZ: Asia/Tokyo
+
+  app:
+    image: prt-app
+    build:
+      context: ./docker/app
+    working_dir: /usr/share/nginx/html/public
+    environment:
+      FLASK_ENV: development
+      FLASK_APP: index.py
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB_NO: 0
+      TZ: Asia/Tokyo
+    volumes:
+      - ./prtapp:/usr/share/nginx/html
+    expose:
+      - "5000"
+    networks:
+      - prt_common
+    tty: true
+
+  # db:
+  #   image: mysql
+  #   restart: always
+  #   networks:
+  #     - common
+  #   ports:
+  #     - "9003:3306"
+
+  redis:
+    image: redis:5
+    volumes:
+      - ./prtapp/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      TZ: Asia/Tokyo
+    ports:
+      - "6379:6379"
+    networks:
+      - prt_common
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "9001:8081"
+    depends_on:
+      - redis
+    networks:
+      - prt_common
+
+networks:
+  prt_common:
+    driver: bridge
